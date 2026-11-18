@@ -157,21 +157,25 @@ ok "${REP} monitoring artifact(s) retained under s3://${BUCKET}/monitoring/"
 step "7 - Verification (independent all-region sweep)"
 sleep 15
 FAIL=0
+# --query applies PER PAGE: a paginated list prints one length per page
+# ("0" and "0" on two lines), which never equals "0". Sum the pages.
+# Found 2026-11-18 when a clean us-east-1 failed this check.
+sum_pages() { awk '{for(i=1;i<=NF;i++) s+=$i} END {print s+0}'; }
 for R in us-east-1 us-east-2 us-west-1 us-west-2 eu-west-1 eu-central-1 ap-southeast-1 ap-northeast-1; do
-  E=$(aws sagemaker list-endpoints --region "$R" --query 'length(Endpoints)' --output text 2>/dev/null)
-  S=$(aws sagemaker list-monitoring-schedules --region "$R" --query 'length(MonitoringScheduleSummaries)' --output text 2>/dev/null)
-  J=$(aws sagemaker list-processing-jobs --region "$R" --status-equals InProgress --query 'length(ProcessingJobSummaries)' --output text 2>/dev/null)
+  E=$(aws sagemaker list-endpoints --region "$R" --query 'length(Endpoints)' --output text 2>/dev/null | sum_pages)
+  S=$(aws sagemaker list-monitoring-schedules --region "$R" --query 'length(MonitoringScheduleSummaries)' --output text 2>/dev/null | sum_pages)
+  J=$(aws sagemaker list-processing-jobs --region "$R" --status-equals InProgress --query 'length(ProcessingJobSummaries)' --output text 2>/dev/null | sum_pages)
   # Anomaly detectors are included here because describe-anomaly-detectors is
   # EVENTUALLY CONSISTENT: on 2026-07-31 a detector reported deleted showed up
   # again moments later in PENDING_TRAINING before settling. Step 5b can
   # legitimately report "none found" while one is still surfacing, so the sweep
   # has to check independently rather than trust the delete.
-  D=$(aws cloudwatch describe-anomaly-detectors --region "$R" --query 'length(AnomalyDetectors)' --output text 2>/dev/null)
+  D=$(aws cloudwatch describe-anomaly-detectors --region "$R" --query 'length(AnomalyDetectors)' --output text 2>/dev/null | sum_pages)
   # MLflow TRACKING SERVERS bill $0.60/hr from creation to deletion and are not
   # endpoints, so nothing else in this course catches them. $10 budget breaches
   # in 16.7 hours. The serverless MLflow APP is free and is NOT checked here --
   # students are meant to keep it. Old CLIs lack this command; treat as 0.
-  M=$(aws sagemaker list-mlflow-tracking-servers --region "$R" --query 'length(TrackingServerSummaries)' --output text 2>/dev/null)
+  M=$(aws sagemaker list-mlflow-tracking-servers --region "$R" --query 'length(TrackingServerSummaries)' --output text 2>/dev/null | sum_pages)
   M=${M:-0}; case "$M" in ''|*[!0-9]*) M=0 ;; esac
   if [ "${E:-0}${S:-0}${J:-0}${D:-0}${M}" = "00000" ]; then
     ok "$R clean"

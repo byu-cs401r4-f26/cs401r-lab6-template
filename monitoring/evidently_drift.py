@@ -182,7 +182,22 @@ def load_capture(path: str) -> pd.DataFrame:
     if not rows:
         sys.exit(f"FATAL: {found} capture file(s) but 0 parseable rows with "
                  f"{len(FEATURE_COLUMNS)} features. Check your payload shape.")
-    return pd.DataFrame(rows, columns=FEATURE_COLUMNS)
+    df = pd.DataFrame(rows, columns=FEATURE_COLUMNS)
+
+    # Drop byte-identical payloads. canary_deploy_realtime.py checks the
+    # traffic split by sending sample.csv 200 times, and capture records every
+    # call: ~181 copies of ONE row land in the champion window. Measured on
+    # the reference account 2026-11-18, those copies alone turned a clean
+    # 900-row window into KS p = 0.0000 on two features -- drift that is not
+    # there. Eleven continuous features make a genuine exact repeat
+    # vanishingly rare, and re-scoring the same vector says nothing about the
+    # population, so dedup costs nothing real.
+    before = len(df)
+    df = df.drop_duplicates().reset_index(drop=True)
+    if len(df) < before:
+        print(f"dropped {before - len(df)} duplicate payload(s) "
+              f"(smoke-test or split-check traffic); {len(df)} distinct rows kept")
+    return df
 
 
 def main() -> int:

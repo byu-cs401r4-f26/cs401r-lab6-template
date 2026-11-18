@@ -180,11 +180,11 @@ if [ -n "${ROLE_ARN}" ] && [ "${ROLE_ARN}" != "None" ]; then
   echo "        Pass this as --role-arn to run_evidently_job.py:"
   echo "        ${ROLE_ARN}"
 else
-  bad "execution role exists" "${EXEC_ROLE} not found - run terraform apply"
+  bad "execution role exists" "${EXEC_ROLE} not found - add it to modules/iam (Lab 6 Prerequisite 2), then terraform apply"
   echo
   echo "  Do NOT substitute ${P}-ModelMonitor. That role is a read-only observer:"
-  echo "  no S3 write, no ECR pull. A monitoring job using it fails about an hour"
-  echo "  several minutes into the job, as an opaque ProcessingJobStatus Failed."
+  echo "  no S3 write, no ECR pull. A drift job using it fails several minutes"
+  echo "  into the job, as an opaque ProcessingJobStatus Failed."
 fi
 
 # ── 5. Cost guard ──────────────────────────────────────────────────────────────

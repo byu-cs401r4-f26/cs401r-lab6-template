@@ -72,9 +72,12 @@ def main() -> int:
                      "is still the starter-kit stub. Implement it before "
                      "launching a billable job.")
 
-    # Ship the analysis script to S3 so the container can mount it.
+    # Ship the analysis script to S3 so the container can mount it. It goes
+    # under monitoring/ because that is the only prefix (with datacapture/)
+    # the ModelMonitorExecution role can read.
+    code_prefix = f"monitoring/code/{job}/"
     s3.upload_file("monitoring/evidently_drift.py", b,
-                   f"{job}/code/evidently_drift.py")
+                   f"{code_prefix}evidently_drift.py")
 
     capture_uri = f"s3://{b}/datacapture/{args.endpoint}/{args.variant}/"
 
@@ -112,7 +115,7 @@ def main() -> int:
             "VolumeSizeInGB": 20}},
         StoppingCondition={"MaxRuntimeInSeconds": 3600},
         ProcessingInputs=[
-            s3_in("code", f"s3://{b}/{job}/code/",
+            s3_in("code", f"s3://{b}/{code_prefix}",
                   "/opt/ml/processing/input/code"),
             s3_in("baseline", f"s3://{b}/monitoring/baseline/",
                   "/opt/ml/processing/input/baseline"),
