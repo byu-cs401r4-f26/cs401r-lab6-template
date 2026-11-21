@@ -134,9 +134,9 @@ def deploy_canary(sm, config_name: str, data_capture_s3_uri: str,
     until the new fleet is healthy. Measured at 3 min 47 s with zero downtime.
 
     DataCaptureConfig is enabled here because Lab 6 cannot exist without it.
-    SageMaker Model Monitor analyses captured inference data; if capture is off
-    there is nothing to analyse, and the monitoring schedule reports no violations
-    forever while looking perfectly healthy. Endpoint configs are IMMUTABLE, so
+    Lab 6's Evidently drift job analyses captured inference data; if capture is
+    off there is nothing to analyse, and a drift check against an empty window
+    looks exactly like a healthy one. Endpoint configs are IMMUTABLE, so
     capture cannot be switched on later without creating a new config and calling
     update-endpoint (3 min 47 s). Turning it on at deploy time costs nothing beyond
     S3 storage, which the datacapture/ lifecycle rule expires after 7 days.
@@ -292,8 +292,9 @@ def main() -> None:
     # Resolved against this file's directory, not the caller's cwd. The old
     # cwd-relative default meant every student who ran this from the repo root
     # -- which is where Lab 5 tells them to run it -- got FileNotFoundError
-    # before a single AWS call. A sample.csv now ships alongside this script
-    # (120 rows, 11 features, header-less, column order = FEATURE_COLUMNS).
+    # before a single AWS call. The kit does NOT ship sample.csv: it reads the
+    # one you created in Lab 5 (one header-less row, 11 features in
+    # FEATURE_COLUMNS order). Lost it? git checkout lab5-submit -- deployment/configs/sample.csv
     ap.add_argument("--sample-csv",
                     default=str(pathlib.Path(__file__).resolve().parent / "sample.csv"),
                     help="One CSV row, no header, features in training order")
@@ -306,7 +307,7 @@ def main() -> None:
     ap.add_argument("--data-capture-s3-uri", default=None,
                     help="Where the endpoint writes captured inference data. "
                          "Defaults to s3://northstar-dev-data-<account>/datacapture/. "
-                         "Lab 6 Model Monitor reads from here.")
+                         "Lab 6's Evidently drift job reads from here.")
     args = ap.parse_args()
 
     if args.data_capture_s3_uri:
